@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections, UndecidableInstances, ScopedTypeVariables #-}
+{-# LANGUAGE UndecidableInstances, ScopedTypeVariables #-}
 
 module Rearrange where
 
@@ -15,13 +15,13 @@ class RearrangeDel env target env' | env target -> env' where
     rDel :: Q (TExp (HList env -> (HList target, HList env')))
 
 instance RearrangeDel env '[] env where
-    rDel = [|| (HNil,) ||]
+    rDel = [|| \l -> (HNil, l) ||]
 
 instance {-# OVERLAPPABLE #-} (RearrangeDel env' target' env'',
     GetHListElem x env env') =>
     RearrangeDel env (x ': target') env'' where
         rDel = [|| \l ->
-            let (x, l') = $$(getHListElem) l
+            let (x, l') = $$(getHListElem @x @env @env') l
                 (xs, l'') = $$(rDel) l'
             in (x :+: xs, l'') ||]
 
@@ -41,6 +41,7 @@ instance {-# OVERLAPPING #-} GetHListElem x (x ': xs) xs where
 
 instance (GetHListElem x inp' out', out ~ (o ': out')) =>
     GetHListElem x (o ': inp') out where
-        getHListElem = [|| \((y :: o) :+: (xs :: HList inp')) ->
-            let (res, rest) = $$(getHListElem) xs :: (x, HList out')
+        getHListElem = [|| \list ->
+            let (y :+: xs) = list
+                (res, rest) = $$(getHListElem) xs
             in (res, y :+: rest) ||]
