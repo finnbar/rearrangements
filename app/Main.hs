@@ -4,7 +4,7 @@
 module Main where
 
 import Rearrange
-import HList
+import Data.HList
 
 list :: HList '[Int, Bool, ()]
 list = 3 :+: True :+: () :+: HNil
@@ -19,4 +19,3 @@ main :: IO ()
 main = print list'
 
 -- TODO: have all forms of rearrangement available as both TH and non-TH versions
--- also need to be able to generalise to other hlist-likes

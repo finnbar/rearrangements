@@ -1,6 +1,6 @@
-module HMonoid where
+module Data.HMonoid where
 
-import HList
+import Data.HList
 
 import Language.Haskell.TH
 

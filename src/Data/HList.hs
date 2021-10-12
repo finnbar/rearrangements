@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module HList where
+module Data.HList where
 
 data HList :: [*] -> * where
   HNil :: HList '[]

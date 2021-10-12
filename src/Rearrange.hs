@@ -2,7 +2,7 @@
 
 module Rearrange where
 
-import HMonoid
+import Data.HMonoid
 
 import Language.Haskell.TH
 
