@@ -1,0 +1,35 @@
+app/Main.hs:15:12-55: Splicing expression
+    rDel @('[Int, Bool, ()]) @('[Bool, (), Int])
+  ======>
+    \ l_a2A9 -- '[I, B, U]
+      -> let
+           (x_a2Aa, l'_a2Ab) -- (B, '[I, U])
+             = (\ list_a2Ae
+                  -> let
+                       (y_a2Af :+: xs_a2Ag) = list_a2Ae -- y :: I, xs :: '[B, U]
+                       (res_a2Ah, rest_a2Ai)
+                         = (\ (x_a2Aj :+: xs_a2Ak) -> (x_a2Aj, xs_a2Ak)) xs_a2Ag -- x :: B, xs :: '[U]
+                     in (res_a2Ah, (y_a2Af :+: rest_a2Ai))) -- (B, '[I, U])
+                 l_a2A9 -- '[I, B, U]
+           (xs_a2Ac, l''_a2Ad) -- ('[U, I], '[])
+             = (\ l_a2Al
+                  -> let
+                       (x_a2Am, l'_a2An) -- (U, '[I])
+                         = (\ list_a2Aq -- '[I, U]
+                              -> let
+                                   (y_a2Ar :+: xs_a2As) = list_a2Aq -- y :: I, xs :: '[U]
+                                   (res_a2At, rest_a2Au) -- (U, '[])
+                                     = (\ (x_a2Av :+: xs_a2Aw) -> (x_a2Av, xs_a2Aw)) xs_a2As
+                                 in (res_a2At, (y_a2Ar :+: rest_a2Au))) -- (U, '[I])
+                             l_a2Al
+                       (xs_a2Ao, l''_a2Ap) -- ('[I], '[])
+                         = (\ l_a2Ax -- '[I]
+                              -> let
+                                   (x_a2Ay, l'_a2Az) -- (I, '[])
+                                     = (\ (x_a2AC :+: xs_a2AD) -> (x_a2AC, xs_a2AD)) l_a2Ax
+                                   (xs_a2AA, l''_a2AB) = (\ l_a2AE -> (HNil, l_a2AE)) l'_a2Az -- ('[], '[])
+                                 in ((x_a2Ay :+: xs_a2AA), l''_a2AB)) -- ('[I], '[])
+                             l'_a2An
+                     in ((x_a2Am :+: xs_a2Ao), l''_a2Ap)) -- ('[U, I], '[])
+                 l'_a2Ab -- '[I, U]
+         in ((x_a2Aa :+: xs_a2Ac), l''_a2Ad) -- ('[B, U, I], '[])

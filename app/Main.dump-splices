@@ -1,0 +1,35 @@
+/home/tetra/Warwick/PhD/code/rearrangements/app/Main.hs:15:12-55: Splicing expression
+    rDel @('[Int, Bool, ()]) @('[Bool, (), Int])
+  ======>
+    \ l_a30Q
+      -> let
+           (x_a30R, l'_a30S)
+             = (\ list_a30V
+                  -> let
+                       (y_a30W :+: xs_a30X) = list_a30V
+                       (res_a30Y, rest_a30Z)
+                         = (\ (x_a310 :+: xs_a311) -> (x_a310, xs_a311)) xs_a30X
+                     in (res_a30Y, (y_a30W :+: rest_a30Z)))
+                 l_a30Q
+           (xs_a30T, l''_a30U)
+             = (\ l_a312
+                  -> let
+                       (x_a313, l'_a314)
+                         = (\ list_a317
+                              -> let
+                                   (y_a318 :+: xs_a319) = list_a317
+                                   (res_a31a, rest_a31b)
+                                     = (\ (x_a31c :+: xs_a31d) -> (x_a31c, xs_a31d)) xs_a319
+                                 in (res_a31a, (y_a318 :+: rest_a31b)))
+                             l_a312
+                       (xs_a315, l''_a316)
+                         = (\ l_a31e
+                              -> let
+                                   (x_a31f, l'_a31g)
+                                     = (\ (x_a31j :+: xs_a31k) -> (x_a31j, xs_a31k)) l_a31e
+                                   (xs_a31h, l''_a31i) = (\ l_a31l -> (HNil, l_a31l)) l'_a31g
+                                 in ((x_a31f :+: xs_a31h), l''_a31i))
+                             l'_a314
+                     in ((x_a313 :+: xs_a315), l''_a316))
+                 l'_a30S
+         in ((x_a30R :+: xs_a30T), l''_a30U)
