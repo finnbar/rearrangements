@@ -39,7 +39,8 @@ rearrangeDel :: forall p q r a b c t. (p ~ t a, q ~ t b, r ~ t c,
 rearrangeDel = rDel @a @b @c @t
 
 type Permute env target t = RearrangeDel env target '[] t
-permute :: Permute env target t => Q (TExp (t env -> t target))
+permute :: forall p q a b t. (p ~ t a, q ~ t b, Permute a b t)
+    => Q (TExp (p -> q))
 permute = [|| fst . $$(rDel) ||]
 
 class RearrangeDel env target env' t | env target -> env' where
