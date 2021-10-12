@@ -1,46 +1,84 @@
-{-# LANGUAGE UndecidableInstances, ScopedTypeVariables #-}
+{-# LANGUAGE UndecidableInstances, ScopedTypeVariables, FlexibleContexts #-}
 
 module Rearrange where
 
-import HList
+import HMonoid
 
 import Language.Haskell.TH
 
-rearrange :: forall a b c. (RearrangeDel a b c)
-    => Q (TExp (HList a -> (HList b, HList c)))
-rearrange = rDel @a @b @c
+-- | rearrange performs rearrangement without deletion.
 
-class RearrangeDel env target env' | env target -> env' where
-    rDel :: Q (TExp (HList env -> (HList target, HList env')))
+rearrange :: forall p q a b t. (p ~ t a, q ~ t b,
+    HMonoid t, Rearrange a b t)
+    => Q (TExp (p -> q))
+rearrange = rearr @a @b @t
 
-instance RearrangeDel env '[] env where
-    rDel = [|| \l -> (HNil, l) ||]
+class Rearrange inp out t where
+    rearr :: Q (TExp (t inp -> t out))
 
-instance {-# OVERLAPPABLE #-} (RearrangeDel env' target' env'',
-    GetHListElem x env env') =>
-    RearrangeDel env (x ': target') env'' where
+instance HMonoid t => Rearrange env '[] t where
+    rearr = [|| const $$(hEmptyTH @t) ||]
+
+instance {-# OVERLAPPABLE #-} (Rearrange env target t,
+    HMonoidElem x env env' t, HMonoid t)
+    => Rearrange env (x ': target) t where
+        rearr = [|| \l ->
+            $$(hCombine @t) ($$(getHMonoidElem) l) ($$(rearr) l) ||]
+
+instance {-# OVERLAPPING #-} (Rearrange env head t,
+    Rearrange env tail t, HMonoid t)
+    => Rearrange env (t head ': tail) t where
+        rearr = [|| \l ->
+            $$(hCombine @t) ($$(rearr) l) ($$(rearr) l) ||]
+
+-- | rearrangeDel performs rearrangement with deletion.
+
+rearrangeDel :: forall p q r a b c t. (p ~ t a, q ~ t b, r ~ t c,
+    HMonoid t, RearrangeDel a b c t)
+    => Q (TExp (p -> (q, r)))
+rearrangeDel = rDel @a @b @c @t
+
+type Permute env target t = RearrangeDel env target '[] t
+permute :: Permute env target t => Q (TExp (t env -> t target))
+permute = [|| fst . $$(rDel) ||]
+
+class RearrangeDel env target env' t | env target -> env' where
+    rDel :: Q (TExp (t env -> (t target, t env')))
+
+instance HMonoid t => RearrangeDel env '[] env t where
+    rDel = [|| \l -> ($$(hEmptyTH @t), l) ||]
+
+instance {-# OVERLAPPABLE #-} (RearrangeDel env' target' env'' t,
+    HMonoidElem x env env' t, HMonoid t) =>
+    RearrangeDel env (x ': target') env'' t where
         rDel = [|| \l ->
-            let (x, l') = $$(getHListElem @x @env @env') l
+            let (x, l') = $$(removeHMonoidElem @x @env @env') l
                 (xs, l'') = $$(rDel @env' @target' @env'') l'
-            in (x :+: xs, l'') ||]
+            in ($$(hCombine @t) x xs, l'') ||]
 
-instance {-# OVERLAPPING #-} (RearrangeDel env head env',
-    RearrangeDel env' target' env'') =>
-    RearrangeDel env (HList head ': target') env'' where
+instance {-# OVERLAPPING #-} (RearrangeDel env head env' t,
+    RearrangeDel env' target' env'' t, HMonoid t) =>
+    RearrangeDel env (t head ': target') env'' t where
         rDel = [|| \l ->
             let (head', l') = $$(rDel) l
                 (tail', l'') = $$(rDel) l'
-            in (head' :+: tail', l'') ||]
+            in ($$(hCombine @t) head' tail', l'') ||]
 
-class GetHListElem x env env' | x env -> env' where
-    getHListElem :: Q (TExp (HList env -> (x, HList env')))
+-- | removeHMonoidElem retrieves the first element of type x from a list of xs.
 
-instance {-# OVERLAPPING #-} GetHListElem x (x ': xs) xs where
-    getHListElem = [|| \(x :+: xs) -> (x, xs) ||]
+class HMonoidElem x env env' t | x env -> env' where
+    removeHMonoidElem :: Q (TExp (t env -> (x, t env')))
+    getHMonoidElem :: Q (TExp (t env -> x))
 
-instance (GetHListElem x inp' out', out ~ (o ': out')) =>
-    GetHListElem x (o ': inp') out where
-        getHListElem = [|| \list ->
-            let (y :+: xs) = list
-                (res, rest) = $$(getHListElem) xs
-            in (res, y :+: rest) ||]
+instance {-# OVERLAPPING #-} HMonoid t => HMonoidElem x (x ': xs) xs t where
+    removeHMonoidElem = hUnconsTH
+    getHMonoidElem = [|| $$(hHeadTH) ||]
+
+instance (HMonoidElem x inp' out' t, out ~ (o ': out'), HMonoid t) =>
+    HMonoidElem x (o ': inp') out t where
+        removeHMonoidElem = [|| \list ->
+            let (y, xs) = $$(hUnconsTH @t) list
+                (res, rest) = $$(removeHMonoidElem) xs
+            in (res, $$(hCombine @t) y rest) ||]
+        getHMonoidElem = [|| 
+            $$(getHMonoidElem) . $$(hTailTH) ||]
