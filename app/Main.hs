@@ -1,24 +1,19 @@
-{-# LANGUAGE TemplateHaskell, DataKinds, FlexibleContexts, TypeApplications, GADTs, PackageImports #-}
+{-# LANGUAGE TemplateHaskell, DataKinds, FlexibleContexts, TypeApplications, GADTs #-}
 {-# OPTIONS_GHC -ddump-splices -ddump-to-file #-}
 
 module Main where
 
 import Rearrange
 import HList
-import RunTcM
-import "template-haskell" Language.Haskell.TH
 
 list :: HList '[Int, Bool, ()]
 list = 3 :+: True :+: () :+: HNil
 
--- problem: $$(rearrange) has no access to type information outside of itself.
--- is there a way to push its expansion as late as possible, so that it has the relevant type information?
+-- due to the discussion in https://gitlab.haskell.org/ghc/ghc/-/issues/10271,
+-- we have to specify the type directly with type annotations (even though
+-- the types of list and list' should fully infer it)
 list' :: (HList '[Bool, (), Int], HList '[])
-list' = $$(rearrange @(HList '[Int, Bool, ()]) @(HList '[Bool, (), Int])) list
-
-x :: Int
-x = (+) three $$(printEnv $ letExpand threee)
-    where three = 3
+list' = $$(rearrange @'[Int, Bool, ()] @'[Bool, (), Int]) list
 
 main :: IO ()
-main = putStrLn $ show list'
+main = print list'

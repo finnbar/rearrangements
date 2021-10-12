@@ -4,21 +4,10 @@ module Rearrange where
 
 import HList
 
-import "template-haskell" Language.Haskell.TH
-import LiftType
-import Type.Reflection
+import Language.Haskell.TH
 
--- IDEA: We know the list structure at compile-time, so want to built code that
--- rearranges that structure without the overheads of typeclasses.
--- We do not know the values in our HLists at compile-time.
--- NOTE: look up polymorphism through TH.
-
--- Takes an expr and returns a quote with that type annotation.
--- typed :: forall tx ty. (Typeable tx, Typeable ty) => Exp -> tx -> ty -> Q Exp
--- typed e _ _ = return (AppTypeE e (App ArrowT (liftType @tx) (liftType @ty)))
-
-rearrange :: forall x y z a b c. (RearrangeDel a b c, x ~ HList a, y ~ HList b, z ~ HList c)
-    => Q (TExp (x -> (y, z)))
+rearrange :: forall a b c. (RearrangeDel a b c)
+    => Q (TExp (HList a -> (HList b, HList c)))
 rearrange = rDel @a @b @c
 
 class RearrangeDel env target env' | env target -> env' where
