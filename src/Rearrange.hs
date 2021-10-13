@@ -18,10 +18,10 @@ class Rearrange inp out where
 instance Rearrange env '[] where
     rearr = [|| const HNil ||]
 
-instance {-# OVERLAPPABLE #-} (Rearrange env target, HMonoidElem x env env')
+instance {-# OVERLAPPABLE #-} (Rearrange env target, HListElem x env env')
     => Rearrange env (x ': target) where
         rearr = [|| \l ->
-            $$(getHMonoidElem) l :+: $$(rearr) l ||]
+            $$(getHListElem) l :+: $$(rearr) l ||]
 
 instance {-# OVERLAPPING #-} (Rearrange env head, Rearrange env tail)
     => Rearrange env (HList head ': tail) where
@@ -46,10 +46,10 @@ instance RearrangeDel env '[] env where
     rDel = [|| \l -> (HNil, l) ||]
 
 instance {-# OVERLAPPABLE #-} (RearrangeDel env' target' env'',
-    HMonoidElem x env env') =>
+    HListElem x env env') =>
     RearrangeDel env (x ': target') env'' where
         rDel = [|| \l ->
-            let (x, l') = $$(removeHMonoidElem @x @env @env') l
+            let (x, l') = $$(removeHListElem @x @env @env') l
                 (xs, l'') = $$(rDel @env' @target' @env'') l'
             in (x :+: xs, l'') ||]
 
@@ -61,20 +61,20 @@ instance {-# OVERLAPPING #-} (RearrangeDel env head env',
                 (tail', l'') = $$(rDel) l'
             in (head' :+: tail', l'') ||]
 
--- | removeHMonoidElem retrieves the first element of type x from a list of xs.
+-- | removeHListElem retrieves the first element of type x from a list of xs.
 
-class HMonoidElem x env env' | x env -> env' where
-    removeHMonoidElem :: Q (TExp (HList env -> (x, HList env')))
-    getHMonoidElem :: Q (TExp (HList env -> x))
+class HListElem x env env' | x env -> env' where
+    removeHListElem :: Q (TExp (HList env -> (x, HList env')))
+    getHListElem :: Q (TExp (HList env -> x))
 
-instance {-# OVERLAPPING #-} HMonoidElem x (x ': xs) xs where
-    removeHMonoidElem = [|| \(x :+: xs) -> (x, xs) ||]
-    getHMonoidElem = [|| \(x :+: _) -> x ||]
+instance {-# OVERLAPPING #-} HListElem x (x ': xs) xs where
+    removeHListElem = [|| \(x :+: xs) -> (x, xs) ||]
+    getHListElem = [|| \(x :+: _) -> x ||]
 
-instance (HMonoidElem x inp' out', out ~ (o ': out')) =>
-    HMonoidElem x (o ': inp') out where
-        removeHMonoidElem = [|| \(y :+: xs) ->
-            let (res, rest) = $$(removeHMonoidElem @x @inp' @out') xs
+instance (HListElem x inp' out', out ~ (o ': out')) =>
+    HListElem x (o ': inp') out where
+        removeHListElem = [|| \(y :+: xs) ->
+            let (res, rest) = $$(removeHListElem @x @inp' @out') xs
             in (res, y :+: rest) ||]
-        getHMonoidElem = [|| \(_ :+: xs) ->
-            $$(getHMonoidElem @x @inp' @out') xs ||]
+        getHListElem = [|| \(_ :+: xs) ->
+            $$(getHListElem @x @inp' @out') xs ||]
