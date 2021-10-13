@@ -1,7 +1,8 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, PolyKinds #-}
 
 module Data.HList where
 
+-- TODO: make isomorphic to Set
 data HList :: [*] -> * where
   HNil :: HList '[]
   (:+:) :: x -> HList xs -> HList (x ': xs)
