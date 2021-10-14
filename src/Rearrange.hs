@@ -8,7 +8,7 @@ import Language.Haskell.TH
 
 -- | rearrange performs rearrangement without deletion.
 
-rearrange :: forall a b. (Rearrange a b)
+rearrange :: forall k (a :: [k]) (b :: [k]). (Rearrange a b)
     => Q (TExp (HList a -> HList b))
 rearrange = rearr @a @b
 
@@ -30,12 +30,12 @@ instance {-# OVERLAPPING #-} (Rearrange env head, Rearrange env tail)
 
 -- | rearrangeDel performs rearrangement with deletion.
 
-rearrangeDel :: forall a b c. (RearrangeDel a b c)
+rearrangeDel :: forall k (a :: [k]) (b :: [k]) (c :: [k]). (RearrangeDel a b c)
     => Q (TExp (HList a -> (HList b, HList c)))
 rearrangeDel = rDel @a @b @c
 
 type Permute env target = RearrangeDel env target '[]
-permute :: forall a b. (Permute a b)
+permute :: forall k (a :: [k]) (b :: [k]). (Permute a b)
     => Q (TExp (HList a -> HList b))
 permute = [|| fst . $$(rDel) ||]
 
