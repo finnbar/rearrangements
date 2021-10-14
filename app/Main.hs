@@ -13,9 +13,12 @@ list = 3 :+: True :+: () :+: HNil
 -- we have to specify the type directly with type annotations (even though
 -- the types of list and list' should fully infer it)
 list' :: HList '[Bool, (), Int]
-list' = $$(rearr @'[Int, Bool, ()] @'[Bool, (), Int]) list
+list' = $$(rearrange @'[Int, Bool, ()] @'[Bool, (), Int]) list
+
+list'' :: HList '[Bool, ()]
+list'' = $$(rearrange @'[Int, Bool, ()] @'[Bool, ()]) list
 
 main :: IO ()
-main = print list'
+main = print list' >> print list''
 
 -- TODO: have all forms of rearrangement available as both TH and non-TH versions
