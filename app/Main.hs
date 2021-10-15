@@ -21,5 +21,3 @@ list'' = rearrange list
 
 main :: IO ()
 main = print list' >> print list''
-
--- TODO: have all forms of rearrangement available as both TH and non-TH versions
