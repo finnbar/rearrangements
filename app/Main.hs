@@ -17,7 +17,7 @@ list' :: HList '[Bool, (), Int]
 list' = $$(rearrangeTH @'[Int, Bool, ()] @'[Bool, (), Int]) list
 
 list'' :: HList '[Bool, (), Int]
-list'' = rearrange @'[Int, Bool, ()] @'[Bool, (), Int] list
+list'' = rearrange list
 
 main :: IO ()
 main = print list' >> print list''
