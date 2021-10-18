@@ -13,3 +13,11 @@ instance Show (HList '[]) where
 
 instance (Show x, Show (HList xs)) => Show (HList (x ': xs)) where
   show (x :+: xs) = show x ++ " :+: " ++ show xs
+
+type family Append (xs :: [k]) (ys :: [k]) where
+  Append '[] ys = ys
+  Append (x ': xs) ys = x ': Append xs ys
+
+hAppend :: HList xs -> HList ys -> HList (Append xs ys)
+hAppend HNil ys = ys
+hAppend (x :+: xs) ys = x :+: hAppend xs ys
