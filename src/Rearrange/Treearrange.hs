@@ -31,56 +31,32 @@ instance (RearrangeTree a (HList xs) k, RearrangeTree a (HList ys) k)
         rearrTree env = rearrTree @a @(HList xs) @k env
             :+: rearrTree @a @(HList ys) @k env
 
--- TODO: implement lookup with deletion (hard).
--- Idea: delete from the HList it exists in.
--- Then rearrange with deletion becomes very similar to lookup.
-class LookupH k (x :: k) env env' | x env -> env' where
-    lookupH :: env -> (HList xs -> HList (x ': xs))
-    removeH :: env -> (HList xs -> HList (x ': xs), env')
+-- TODO: this is blatantly wrong.
+class LookupH k x a a' where
+    lookupH :: a -> (x, a')
 
--- When a HList consists of leaves of kind k:
+-- Instance for lists which consist of lists
 
-instance {-# OVERLAPPING #-} LookupH k x (HList (x ': xs)) (HList xs) where
-    lookupH (x :+: xs) = (x :+:)
-    removeH (x :+: xs) = ((x :+:), xs)
+class LookupHNodes k (x :: *) (xs :: [*]) (xs' :: [*]) | x xs -> xs' where
+    removeHNodes :: HList xs -> (HList ys -> HList (x ': ys), HList xs')
+    getHNodes :: HList xs -> (HList ys -> HList (x ': ys))
 
-instance {-# OVERLAPPABLE #-} (LookupH k x (HList xs) (HList ys)) =>
-    LookupH k x (HList (y ': xs)) (HList (y ': ys)) where
-        lookupH (_ :+: xs) = lookupH xs
-        removeH (x :+: xs) =
-            let (res, rest) = removeH xs
+-- TODO: this implementation. The challenge, as always, is to find out which
+-- way (in a list) to go at compile time.
+
+-- Instance for lists of nodes of kind k (no recursion)
+
+class LookupHLeaves k (x :: k) (xs :: [k]) (xs' :: [k]) | x xs -> xs' where
+    removeHLeaves :: HList xs -> (HList ys -> HList (x ': ys), HList xs')
+    getHLeaves :: HList xs -> (HList ys -> HList (x ': ys))
+
+instance LookupHLeaves k x (x ': xs) xs where
+    removeHLeaves (x :+: xs) = ((x :+:), xs)
+    getHLeaves (x :+: _) = (x :+:)
+
+instance (LookupHLeaves k x xs xs') =>
+    LookupHLeaves k x (y ': xs) (y ': xs') where
+        removeHLeaves (x :+: xs) =
+            let (res, rest) = removeHLeaves xs
             in (res, x :+: rest)
-
--- When a HList consists of other HLists:
-
-type family Contains (x :: k) (xs :: [k]) where
-    Contains x '[] = 'False
-    Contains x (x ': xs) = 'True
-    Contains x (y ': xs) = Contains x xs
-
---type family Flatten 
-
-instance (b ~ Contains x xs, LookupHIn b k x (HList (HList xs ': ys)) (HList out)) =>
-    LookupH k x (HList (HList xs ': ys)) (HList out) where
-        lookupH = lookupHIn @b
-        removeH = removeHIn @b
-
-class LookupHIn (b :: Bool) k (x :: k) env env' | x env -> env' where
-    lookupHIn :: env -> (HList xs -> HList (x ': xs))
-    removeHIn :: env -> (HList xs -> HList (x ': xs), env')
-
-instance (LookupH k x (HList xs) (HList zs),
-    out ~ Append ys zs) =>
-    LookupHIn 'True k x (HList (HList xs ': ys)) (HList out) where
-        lookupHIn (x :+: _) = lookupH x
-        removeHIn (x :+: xs) =
-            let (res, rest) = removeH x
-            in (res, xs `hAppend` rest)
-
-instance (LookupH k x (HList ys) (HList zs),
-    out ~ Append ys zs) =>
-    LookupHIn 'False k x (HList (HList xs ': ys)) (HList out) where
-        lookupHIn (_ :+: xs) = lookupH xs
-        removeHIn (x :+: xs) =
-            let (res, rest) = removeH xs
-            in (res, xs `hAppend` rest)
+        getHLeaves (_ :+: xs) = getHLeaves xs
