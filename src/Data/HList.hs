@@ -9,10 +9,31 @@ data HList (n :: [k]) where
 infixr 5 :+:
 
 instance Show (HList '[]) where
-  show HNil = "HNil"
+  show HNil = "[]"
 
-instance (Show x, Show (HList xs)) => Show (HList (x ': xs)) where
-  show (x :+: xs) = show x ++ " :+: " ++ show xs
+instance (Show e, Show' (HList s)) => Show (HList (e ': s)) where
+  show (e :+: s) = "[" ++ show e ++ show' s ++ "]"
+
+class Show' t where
+  show' :: t -> String
+instance Show' (HList '[]) where
+  show' HNil = ""
+instance (Show' (HList s), Show e) => Show' (HList (e ': s)) where
+  show' (e :+: s) = ", " ++ show e ++ show' s
+
+instance Eq (HList '[]) where
+  (==) _ _ = True
+instance (Eq e, Eq (HList s)) => Eq (HList (e ': s)) where
+    (e :+: m) == (e' :+: m') = e == e' && m == m'
+
+instance Ord (HList '[]) where
+  compare _ _ = EQ
+instance (Ord a, Ord (HList s)) => Ord (HList (a ': s)) where
+  compare (a :+: as) (a' :+: as') = case compare a a' of
+    EQ ->
+      compare as as'
+    other ->
+      other
 
 type family Append (xs :: [k]) (ys :: [k]) where
   Append '[] ys = ys
