@@ -15,42 +15,89 @@ import Data.HList
 -- (i.e. we essentially do rearr l = getFirstElem :+: rearr l.)
 -- We likely want to stick with this pattern - it's just a kinding challenge.
 
--- Flattening of nested HLists into a single HList
+-- Rearrange arbitrary HLists into other HLists (no deletion)
+-- TODO: Implement RearrangeDel, then generate TH versions.
+class Rearrange a b where
+    rearr :: a -> b
 
-{-
-class FlattenNestedHLists k xs (ys :: [k]) | xs -> ys where
-    flattenH :: HList xs -> HList ys
+-- Base case: result is empty.
+instance Rearrange a (HList '[]) where
+    rearr = const HNil
 
-instance FlattenNestedHLists k '[] '[] where
-    flattenH = const HNil
+-- Recursive case 1: list is of type x ': xs.
+instance {-# OVERLAPPABLE #-} (LookupH x a a', Rearrange a (HList xs)) =>
+    Rearrange a (HList (x ': xs)) where
+        rearr env = lookupH env $ rearr env
 
-instance {-# OVERLAPPING #-} (zs ~ Append ys' xs', FlattenNestedHLists k xs xs',
-    FlattenNestedHLists k ys ys')
-    => FlattenNestedHLists k (HList ys ': xs) zs where
-        flattenH (list :+: lists) = flattenH @k @ys @ys' list
-            `hAppend` flattenH @k @xs @xs' lists
+-- Recursive case 2: list is of type x ': xs, and x is a HList itself.
+instance {-# OVERLAPPING #-} (Rearrange a (HList xs), Rearrange a (HList ys)) =>
+    Rearrange a (HList (HList xs ': ys)) where
+        rearr env = rearr env :+: rearr env
 
-instance {-# OVERLAPPABLE #-} (FlattenNestedHLists k xs ys)
-    => FlattenNestedHLists k (x ': xs) (x ': ys) where
-        flattenH (el :+: list) = el :+: flattenH list
--}
+-- Lookup allows elements of a given type to be retrieved from a HList.
+class LookupH x env env' | x env -> env' where
+    lookupH :: env -> (HList xs -> HList (x ': xs))
+    removeH :: env -> (HList xs -> HList (x ': xs), env')
 
-class FlattenNestedHLists x y | x -> y where
-    flattenH :: x -> y
+-- Base case: the result is at the head of the input, so take it.
+instance {-# OVERLAPPING #-} LookupH x (HList (x ': xs)) (HList xs) where
+    lookupH (x :+: _) = (x :+:)
+    removeH (x :+: xs) = ((x :+:), xs)
 
-instance FlattenNestedHLists (HList ('[] @k)) (HList ('[] @k)) where
-    flattenH = const HNil
+-- Type-level Or, for simplicity.
+type family Or (x :: Bool) (y :: Bool) :: Bool where
+    Or 'False 'False = 'False
+    Or _ _ = 'True
 
-instance {-# OVERLAPPING #-} (zs ~ Append ys' xs', FlattenNestedHLists (HList xs) (HList xs'),
-    FlattenNestedHLists (HList ys) (HList ys'))
-    => FlattenNestedHLists (HList (HList ys ': xs)) (HList zs) where
-        flattenH (list :+: lists) = flattenH @(HList ys) @(HList ys') list
-            `hAppend` flattenH @(HList xs) @(HList xs') lists
+-- Determines whether a type is present anywhere within nested HLists.
+type family Contains (x :: k) (l :: *) :: Bool where
+    Contains x (HList '[]) = 'False
+    Contains x (HList (x ': _)) = 'True
+    Contains x (HList (HList es ': xs)) =
+        Or (Contains x (HList es)) (Contains x (HList xs))
+    Contains x (HList (y ': xs)) = Contains x (HList xs)
 
-instance {-# OVERLAPPING #-} (FlattenNestedHLists (HList ys) (HList ys'))
-    => FlattenNestedHLists (HList '[HList ys]) (HList ys') where
-        flattenH (list :+: _) = flattenH @(HList ys) @(HList ys') list
+data COS = IsContained Bool | Single
 
-instance {-# OVERLAPPABLE #-} (FlattenNestedHLists (HList xs) (HList ys))
-    => FlattenNestedHLists (HList (x ': xs)) (HList (x ': ys)) where
-        flattenH (el :+: list) = el :+: flattenH list
+type family ContainsOrSingle (x :: k) (l :: *) :: COS where
+    ContainsOrSingle x (HList xs) = 'IsContained (Contains x (HList xs))
+    ContainsOrSingle x _ = 'Single
+
+-- Recursive case: we don't immediately match, so we may need to explore the
+-- head of the list further (if it is itself a HList that contains the target)
+-- or just skip it.
+instance {-# OVERLAPPABLE #-} (r ~ ContainsOrSingle x y,
+    Nest r x (HList (y ': xs)) (HList (y ': ys))) =>
+    LookupH x (HList (y ': xs)) (HList (y ': ys)) where
+        lookupH = lookupHNest @r
+        removeH = removeHNest @r
+
+-- Nest determines whether the first element is a list and whether we should
+-- investigate within it (using the result of ContainsOrSingle).
+class Nest (res :: COS) x env env' | x env -> env' where
+    lookupHNest :: env -> (HList xs -> HList (x ': xs))
+    removeHNest :: env -> (HList xs -> HList (x ': xs), env')
+
+-- If it is a single element, skip over it.
+instance (LookupH x (HList xs) (HList ys)) =>
+    Nest 'Single x (HList (y ': xs)) (HList (y ': ys)) where
+        lookupHNest (_ :+: xs) = lookupH xs
+        removeHNest (x :+: xs) =
+            let (res, rest) = removeH xs
+            in (res, x :+: rest)
+
+-- If it is a HList and Contains found our target, explore that target.
+instance (LookupH x (HList xs) (HList xs')) =>
+    Nest ('IsContained 'True) x (HList (HList xs ': ys)) (HList (HList xs' ': ys)) where
+        lookupHNest (x :+: _) = lookupH x
+        removeHNest (x :+: xs) =
+            let (res, rest) = removeH x
+            in (res, rest :+: xs)
+
+-- If it is a HList and Contains did not find our target, skip over it.
+instance (LookupH x (HList ys) (HList ys')) =>
+    Nest ('IsContained 'False) x (HList (HList xs ': ys)) (HList (HList xs ': ys')) where
+        lookupHNest (_ :+: xs) = lookupH xs
+        removeHNest (x :+: xs) =
+            let (res, rest) = removeH xs
+            in (res, x :+: rest)
