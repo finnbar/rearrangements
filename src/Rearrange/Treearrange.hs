@@ -5,18 +5,10 @@ module Rearrange.Treearrange where
 
 import Data.HList
 
--- IDEA: Want trees with k-kinded nodes to be treeted properly.
--- Nodes are HLists, leaves are types of kind k.
--- Challenge is rearranging from and to.
-
--- Need to allow our lookups to do tree traversal. The challenge here is giving
--- our trees the right kind, since they consist of [*] and [k] internally.
--- Note that rearrange currently iterates on the _output_ not the input.
--- (i.e. we essentially do rearr l = getFirstElem :+: rearr l.)
--- We likely want to stick with this pattern - it's just a kinding challenge.
-
+-- **********
 -- Rearrange arbitrary HLists into other HLists (no deletion)
--- TODO: Implement RearrangeDel, then generate TH versions.
+-- **********
+
 class Rearrange a b where
     rearr :: a -> b
 
@@ -34,7 +26,35 @@ instance {-# OVERLAPPING #-} (Rearrange a (HList xs), Rearrange a (HList ys)) =>
     Rearrange a (HList (HList xs ': ys)) where
         rearr env = rearr env :+: rearr env
 
--- Lookup allows elements of a given type to be retrieved from a HList.
+-- *********
+-- RearrangeDel rearranges arbitrary HLists into other HLists (with deletion)
+-- *********
+
+class RearrangeDel a b c | a b -> c where
+    rDel :: a -> (b, c)
+
+-- Base case: result is empty.
+instance RearrangeDel a (HList '[]) a where
+    rDel l = (HNil, l)
+
+-- Recursive case 1: list is of type x ': xs.
+instance {-# OVERLAPPABLE #-} (LookupH x a a', RearrangeDel a' (HList xs) a'') =>
+    RearrangeDel a (HList (x ': xs)) a'' where
+        rDel env = let (prependRes, env') = removeH env
+                       (rest, env'') = rDel env'
+                    in (prependRes rest, env'')
+
+-- Recursive case 2: list is of type x ': xs, and x is a HList itself.
+instance {-# OVERLAPPING #-} (RearrangeDel a (HList xs) a', RearrangeDel a' (HList ys) a'') =>
+    RearrangeDel a (HList (HList xs ': ys)) a'' where
+        rDel env = let (left, env') = rDel env
+                       (right, env'') = rDel env'
+                    in (left :+: right, env'')
+
+-- *********
+-- LookupH allows elements of a given type to be retrieved from a HList.
+-- *********
+
 class LookupH x env env' | x env -> env' where
     lookupH :: env -> (HList xs -> HList (x ': xs))
     removeH :: env -> (HList xs -> HList (x ': xs), env')
