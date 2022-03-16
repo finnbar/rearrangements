@@ -10,8 +10,10 @@ import Data.HList
 list :: HList '[Int, Bool, ()]
 list = 3 :+: True :+: () :+: HNil
 
-list' :: HList '[Bool, (), Int]
-list' = rearrange list
+-- TODO: test lists within lists etc.
+
+list' :: HList '[Int, (), Bool]
+list' = fst $ rDel list
 
 -- due to the discussion in https://gitlab.haskell.org/ghc/ghc/-/issues/10271,
 -- we have to specify the type directly with type annotations (even though
