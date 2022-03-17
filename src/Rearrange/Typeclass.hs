@@ -5,7 +5,7 @@ module Rearrange.Typeclass where
 
 import Rearrange.Rearrangeable
 
--- TODO: take these, make TH versions and drop them in-place of the existing ones.
+-- TODO: will have to do really awkward stuff to make this kind-poly. (See LookupH.)
 -- Then make type-level-sets point to this branch, remove the explicit kinds and add aliases for Nubable etc.
 -- Finally, need to work out how to make the Set thing work. (New branch, so Dom can have a comparison.)
 
@@ -13,19 +13,25 @@ import Rearrange.Rearrangeable
 -- Rearrange arbitrary HLists into other HLists (no deletion)
 -- **********
 
-class Rearrangeable t => Rearrange t a b where
-    rearr :: t a -> t b
+class Rearrangeable t => Rearrange t as bs where
+    rearr :: t as -> t bs
 
 -- Base case: result is empty.
-instance Rearrangeable t => Rearrange t a '[] where
+instance Rearrangeable t => Rearrange t as '[] where
     rearr = const rEmpty
 
-type family Remove (x :: k) (xs :: [k]) :: [k] where
-    Remove x (x ': xs) = xs
-    Remove x (y ': xs) = y ': Remove x xs
+type family If (b :: Bool) (x :: k) (y :: k) where
+    If 'True t f = t
+    If 'False t f = f
+
+type family Remove (t :: [k] -> *) (x :: k) (xs :: [k]) :: [k] where
+    Remove t x (t xs ': xs') = If (Contains t x (t xs))
+        (t (Remove t x xs) ': xs') (t xs ': Remove t x xs')
+    Remove t x (x ': xs) = xs
+    Remove t x (y ': xs) = y ': Remove t x xs
 
 -- Recursive case 1: list is of type x ': xs.
-instance {-# OVERLAPPABLE #-} (LookupH t x as (Remove x as), Rearrange t as xs) =>
+instance {-# OVERLAPPABLE #-} (LookupH t x as (Remove t x as), Rearrange t as xs) =>
     Rearrange t as (x ': xs) where
         rearr env = lookupH env $ rearr env
 
@@ -46,7 +52,7 @@ instance Rearrangeable t => RearrangeDel t a '[] a where
     rDel l = (rEmpty, l)
 
 -- Recursive case 1: list is of type x ': xs.
-instance {-# OVERLAPPABLE #-} (a' ~ Remove x a, LookupH t x a a', RearrangeDel t a' xs a'') =>
+instance {-# OVERLAPPABLE #-} (a' ~ Remove t x a, LookupH t x a a', RearrangeDel t a' xs a'') =>
     RearrangeDel t a (x ': xs) a'' where
         rDel env = let (prependRes, env') = removeH env
                        (rest, env'') = rDel env'
@@ -78,25 +84,27 @@ type family Or (x :: Bool) (y :: Bool) :: Bool where
     Or _ _ = 'True
 
 -- Determines whether a type is present anywhere within nested HLists.
-type family Contains (x :: k) (l :: *) :: Bool where
-    Contains x (t '[]) = 'False
-    Contains x (t (x ': _)) = 'True
-    Contains x (t (t es ': xs)) =
-        Or (Contains x (t es)) (Contains x (t xs))
-    Contains x (t (y ': xs)) = Contains x (t xs)
+type family Contains (t :: [*] -> *) (x :: *) (l :: *) :: Bool where
+    Contains t x (t '[]) = 'False
+    Contains t x (t (x ': _)) = 'True
+    Contains t x (t (t es ': xs)) =
+        Or (Contains t x (t es)) (Contains t x (t xs))
+    Contains t x (t (y ': xs)) = Contains t x (t xs)
 
 data COS = IsContained Bool | Single
 
-type family ContainsOrSingle x (l :: *) :: COS where
-    ContainsOrSingle x (t xs) = 'IsContained (Contains x (t xs))
-    ContainsOrSingle x _ = 'Single
+type family ContainsOrSingle (t :: [*] -> *) x (l :: *) :: COS where
+    ContainsOrSingle t x (t xs) = 'IsContained (Contains t x (t xs))
+    ContainsOrSingle t x _ = 'Single
 
 -- Recursive case: we don't immediately match, so we may need to explore the
 -- head of the list further (if it is itself a HList that contains the target)
 -- or just skip it.
-instance {-# OVERLAPPABLE #-} (r ~ ContainsOrSingle x y,
-    Nest t r x (y ': xs) (y ': ys)) =>
-    LookupH t x (y ': xs) (y ': ys) where
+-- TODO: I feel like there's a way to implement this more simply, because this is currently quite cursed.
+-- IDEA: remove the two instances of LookupH, just use ContainsOrSingle immediately.
+instance {-# OVERLAPPABLE #-} (r ~ ContainsOrSingle t x y,
+    Nest t r x (y ': xs) (y' ': ys)) =>
+    LookupH t x (y ': xs) (y' ': ys) where
         lookupH = lookupHNest @t @r
         removeH = removeHNest @t @r
 

@@ -21,5 +21,12 @@ list' = fst $ rDel list
 list'' :: HList '[Bool, (), Int]
 list'' = $$(rearrangeTH @'[Int, Bool, ()] @'[Bool, (), Int]) list
 
+multiList :: HList '[HList '[Bool, ()], Int]
+multiList = (True :+: () :+: HNil) :+: 3 :+: HNil
+
+-- TODO: going into a HList is causing it problems.
+multiList' :: HList '[(), Int, Bool]
+multiList' = rearr multiList
+
 main :: IO ()
-main = print list' >> print list''
+main = print list' >> print list'' >> print multiList'
