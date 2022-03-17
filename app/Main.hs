@@ -1,5 +1,5 @@
 {-# LANGUAGE TemplateHaskell, DataKinds, FlexibleContexts, TypeApplications, GADTs #-}
-{-# OPTIONS_GHC -ddump-splices -ddump-to-file #-}
+-- {-# OPTIONS_GHC -ddump-splices -ddump-to-file #-}
 
 module Main where
 
@@ -9,8 +9,6 @@ import Data.HList
 
 list :: HList '[Int, Bool, ()]
 list = 3 :+: True :+: () :+: HNil
-
--- TODO: test lists within lists etc.
 
 list' :: HList '[Int, (), Bool]
 list' = fst $ rDel list

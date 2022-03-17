@@ -6,10 +6,6 @@ module Rearrange.Typeclass where
 import Rearrange.Rearrangeable
 import Rearrange.TypeFamilies
 
--- TODO: will have to do really awkward stuff to make this kind-poly. (See LookupH.)
--- Then make type-level-sets point to this branch, remove the explicit kinds and add aliases for Nubable etc.
--- Finally, need to work out how to make the Set thing work. (New branch, so Dom can have a comparison.)
-
 -- **********
 -- Rearrange arbitrary HLists into other HLists (no deletion)
 -- **********
@@ -66,8 +62,8 @@ class LookupH t x env env' | x env -> env' where
 
 -- Base case: the result is at the head of the input, so take it.
 instance {-# OVERLAPPING #-} Rearrangeable t => LookupH t x (x ': xs) xs where
-    lookupH h = rCons (rHead h)
-    removeH h = (rCons (rHead h), rTail h)
+    lookupH h = rConsToHead h
+    removeH h = (rConsToHead h, rTail h)
 
 -- Recursive case: we don't immediately match, so we may need to explore the
 -- head of the list further (if it is itself a HList that contains the target)
@@ -90,7 +86,7 @@ instance (Rearrangeable t, LookupH t x xs ys) =>
         lookupHNest h = lookupH (rTail h)
         removeHNest h =
             let (res, rest) = removeH (rTail h)
-            in (res, rCons (rHead h) rest)
+            in (res, rConsToHead h rest)
 
 -- If it is a HList and Contains found our target, explore that target.
 instance (Rearrangeable t, LookupH t x xs xs') =>
@@ -106,4 +102,4 @@ instance (Rearrangeable t, LookupH t x ys ys') =>
         lookupHNest h = lookupH (rTail h)
         removeHNest h =
             let (res, rest) = removeH (rTail h)
-            in (res, rCons (rHead h) rest)
+            in (res, rConsToHead h rest)
