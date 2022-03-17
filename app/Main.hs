@@ -24,9 +24,14 @@ list'' = $$(rearrangeTH @'[Int, Bool, ()] @'[Bool, (), Int]) list
 multiList :: HList '[HList '[Bool, ()], Int]
 multiList = (True :+: () :+: HNil) :+: 3 :+: HNil
 
--- TODO: going into a HList is causing it problems.
 multiList' :: HList '[(), Int, Bool]
 multiList' = rearr multiList
 
+multiList'' :: HList '[(), HList '[Bool, Int]]
+multiList'' = rearr multiList
+
+multiList''' :: HList '[HList '[HList '[Int, Bool], ()]]
+multiList''' = rearr multiList
+
 main :: IO ()
-main = print list' >> print list'' >> print multiList'
+main = print list' >> print list'' >> print multiList' >> print multiList'' >> print multiList'''

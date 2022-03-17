@@ -4,6 +4,7 @@
 module Rearrange.Typeclass where
 
 import Rearrange.Rearrangeable
+import Rearrange.TypeFamilies
 
 -- TODO: will have to do really awkward stuff to make this kind-poly. (See LookupH.)
 -- Then make type-level-sets point to this branch, remove the explicit kinds and add aliases for Nubable etc.
@@ -19,16 +20,6 @@ class Rearrangeable t => Rearrange t as bs where
 -- Base case: result is empty.
 instance Rearrangeable t => Rearrange t as '[] where
     rearr = const rEmpty
-
-type family If (b :: Bool) (x :: k) (y :: k) where
-    If 'True t f = t
-    If 'False t f = f
-
-type family Remove (t :: [k] -> *) (x :: k) (xs :: [k]) :: [k] where
-    Remove t x (t xs ': xs') = If (Contains t x (t xs))
-        (t (Remove t x xs) ': xs') (t xs ': Remove t x xs')
-    Remove t x (x ': xs) = xs
-    Remove t x (y ': xs) = y ': Remove t x xs
 
 -- Recursive case 1: list is of type x ': xs.
 instance {-# OVERLAPPABLE #-} (LookupH t x as (Remove t x as), Rearrange t as xs) =>
@@ -78,35 +69,14 @@ instance {-# OVERLAPPING #-} Rearrangeable t => LookupH t x (x ': xs) xs where
     lookupH h = rCons (rHead h)
     removeH h = (rCons (rHead h), rTail h)
 
--- Type-level Or, for simplicity.
-type family Or (x :: Bool) (y :: Bool) :: Bool where
-    Or 'False 'False = 'False
-    Or _ _ = 'True
-
--- Determines whether a type is present anywhere within nested HLists.
-type family Contains (t :: [*] -> *) (x :: *) (l :: *) :: Bool where
-    Contains t x (t '[]) = 'False
-    Contains t x (t (x ': _)) = 'True
-    Contains t x (t (t es ': xs)) =
-        Or (Contains t x (t es)) (Contains t x (t xs))
-    Contains t x (t (y ': xs)) = Contains t x (t xs)
-
-data COS = IsContained Bool | Single
-
-type family ContainsOrSingle (t :: [*] -> *) x (l :: *) :: COS where
-    ContainsOrSingle t x (t xs) = 'IsContained (Contains t x (t xs))
-    ContainsOrSingle t x _ = 'Single
-
 -- Recursive case: we don't immediately match, so we may need to explore the
 -- head of the list further (if it is itself a HList that contains the target)
 -- or just skip it.
--- TODO: I feel like there's a way to implement this more simply, because this is currently quite cursed.
--- IDEA: remove the two instances of LookupH, just use ContainsOrSingle immediately.
 instance {-# OVERLAPPABLE #-} (r ~ ContainsOrSingle t x y,
-    Nest t r x (y ': xs) (y' ': ys)) =>
-    LookupH t x (y ': xs) (y' ': ys) where
-        lookupH = lookupHNest @t @r
-        removeH = removeHNest @t @r
+    Nest t r x (y ': xs) ys) =>
+    LookupH t x (y ': xs) ys where
+        lookupH = lookupHNest @t @r @x @(y ': xs) @ys
+        removeH = removeHNest @t @r @x @(y ': xs) @ys
 
 -- Nest determines whether the first element is a list and whether we should
 -- investigate within it (using the result of ContainsOrSingle).
