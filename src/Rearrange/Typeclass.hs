@@ -34,6 +34,11 @@ instance {-# OVERLAPPING #-} (Rearrange t as xs, Rearrange t as ys) =>
 class Rearrangeable t => RearrangeDel t a b c | a b -> c where
     rDel :: t a -> (t b, t c)
 
+type Permute t a b = RearrangeDel t a b '[]
+
+permute :: Permute t a b => t a -> t b
+permute = fst . rDel
+
 -- Base case: result is empty.
 instance Rearrangeable t => RearrangeDel t a '[] a where
     rDel l = (rEmpty, l)
