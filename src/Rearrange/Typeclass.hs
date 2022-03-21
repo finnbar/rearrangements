@@ -35,7 +35,7 @@ class Rearrangeable t => RearrangeDel t a b c | a b -> c where
     rDel :: t a -> (t b, t c)
 
 type Permute t a b = RearrangeDel t a b '[]
-type RearrangeDelInferred t a b r = (RearrangeDel t a b r, RemoveAll t b a ~ r)
+type RDel t a b = RearrangeDel t a b (RemoveAll t b a)
 
 permute :: Permute t a b => t a -> t b
 permute = fst . rDel
