@@ -10,7 +10,7 @@ import Rearrange.TypeFamilies
 -- Rearrange arbitrary HLists into other HLists (no deletion)
 -- **********
 
-class Rearrangeable t => Rearrange t as bs where
+class Rearrangeable t => Rearrange (t :: [k] -> *) (as :: [k]) (bs :: [k]) where
     rearr :: t as -> t bs
 
 -- Base case: result is empty.
@@ -23,7 +23,7 @@ instance {-# OVERLAPPABLE #-} (LookupH t x as (Remove t x as), Rearrange t as xs
         rearr env = lookupH env $ rearr env
 
 -- Recursive case 2: list is of type x ': xs, and x is a HList itself.
-instance {-# OVERLAPPING #-} (Rearrange t as xs, Rearrange t as ys) =>
+instance {-# OVERLAPPING #-} (RearrangeableStar t, Rearrange t as xs, Rearrange t as ys) =>
     Rearrange t as (t xs ': ys) where
         rearr env = rCons (rearr env) (rearr env)
 
@@ -52,7 +52,7 @@ instance {-# OVERLAPPABLE #-} (a' ~ Remove t x a, LookupH t x a a', RearrangeDel
                     in (prependRes rest, env'')
 
 -- Recursive case 2: list is of type x ': xs, and x is a HList itself.
-instance {-# OVERLAPPING #-} (RearrangeDel t a xs a', RearrangeDel t a' ys a'') =>
+instance {-# OVERLAPPING #-} (RearrangeableStar t, RearrangeDel t a xs a', RearrangeDel t a' ys a'') =>
     RearrangeDel t a (t xs ': ys) a'' where
         rDel env = let (left, env') = rDel env
                        (right, env'') = rDel env'
@@ -62,7 +62,7 @@ instance {-# OVERLAPPING #-} (RearrangeDel t a xs a', RearrangeDel t a' ys a'') 
 -- LookupH allows elements of a given type to be retrieved from a HList.
 -- **********
 
-class LookupH t x env env' | x env -> env' where
+class LookupH (t :: [k] -> *) (x :: k) (env :: [k]) (env' :: [k]) | x env -> env' where
     lookupH :: t env -> (t xs -> t (x ': xs))
     removeH :: t env -> (t xs -> t (x ': xs), t env')
 
@@ -95,7 +95,7 @@ instance (Rearrangeable t, LookupH t x xs ys) =>
             in (res, rConsToHead h rest)
 
 -- If it is a HList and Contains found our target, explore that target.
-instance (Rearrangeable t, LookupH t x xs xs') =>
+instance (Rearrangeable t, RearrangeableStar t, LookupH t x xs xs') =>
     Nest t ('IsContained 'True) x (t xs ': ys) (t xs' ': ys) where
         lookupHNest h = lookupH (rHead h)
         removeHNest h =

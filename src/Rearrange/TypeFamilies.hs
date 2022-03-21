@@ -18,7 +18,7 @@ type family Or (x :: Bool) (y :: Bool) :: Bool where
     Or _ _ = 'True
 
 -- Determines whether a type is present anywhere within nested t.
-type family Contains (t :: [*] -> *) (x :: *) (l :: *) :: Bool where
+type family Contains (t :: [k] -> *) (x :: k) (l :: k) :: Bool where
     Contains t x (t '[]) = 'False
     Contains t x (t (x ': _)) = 'True
     Contains t x (t (t es ': xs)) =
@@ -27,7 +27,7 @@ type family Contains (t :: [*] -> *) (x :: *) (l :: *) :: Bool where
 
 data COS = IsContained Bool | Single
 
-type family ContainsOrSingle (t :: [*] -> *) x (l :: *) :: COS where
+type family ContainsOrSingle (t :: [k] -> *) (x :: k) (l :: k) :: COS where
     ContainsOrSingle t x (t xs) = 'IsContained (Contains t x (t xs))
     ContainsOrSingle t x _ = 'Single
 
