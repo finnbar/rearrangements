@@ -31,3 +31,6 @@ type family ContainsOrSingle (t :: [*] -> *) x (l :: *) :: COS where
     ContainsOrSingle t x (t xs) = 'IsContained (Contains t x (t xs))
     ContainsOrSingle t x _ = 'Single
 
+type family RemoveAll (t :: [k] -> *) (xs :: [k]) (li :: [k]) :: [k] where
+    RemoveAll t '[] li = li
+    RemoveAll t (x ': xs) li = RemoveAll t xs (Remove t x li)
