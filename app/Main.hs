@@ -11,7 +11,7 @@ list :: HList '[Int, Bool, ()]
 list = 3 :+: True :+: () :+: HNil
 
 list' :: HList '[Int, (), Bool]
-list' = fst $ rDel list
+list' = fst $ rearrDel list
 
 -- due to the discussion in https://gitlab.haskell.org/ghc/ghc/-/issues/10271,
 -- we have to specify the type directly with type annotations (even though

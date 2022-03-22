@@ -32,33 +32,33 @@ instance {-# OVERLAPPING #-} (RearrangeTH * env head, RearrangeTH * env tail)
 
 rearrangeDelTH :: forall (a :: [*]) (b :: [*]) (c :: [*]). (RearrangeDelTH * a b c)
     => Q (TExp (HList a -> (HList b, HList c)))
-rearrangeDelTH = rDelTH @(*) @a @b @c
+rearrangeDelTH = rearrDelTH @(*) @a @b @c
 
 type PermuteTH k env target = RearrangeDelTH k env target '[]
 permuteTH :: forall k (a :: [k]) (b :: [k]). (PermuteTH k a b)
     => Q (TExp (HList a -> HList b))
-permuteTH = [|| fst . $$(rDelTH) ||]
+permuteTH = [|| fst . $$(rearrDelTH) ||]
 
 class RearrangeDelTH k (env :: [k]) (target :: [k]) (env' :: [k]) | env target -> env' where
-    rDelTH :: Q (TExp (HList env -> (HList target, HList env')))
+    rearrDelTH :: Q (TExp (HList env -> (HList target, HList env')))
 
 instance RearrangeDelTH k env '[] env where
-    rDelTH = [|| \l -> (HNil, l) ||]
+    rearrDelTH = [|| \l -> (HNil, l) ||]
 
 instance {-# OVERLAPPABLE #-} (RearrangeDelTH k env' target' env'',
     HListElemTH k x env env') =>
     RearrangeDelTH k env (x ': target') env'' where
-        rDelTH = [|| \l ->
+        rearrDelTH = [|| \l ->
             let (prependX, l') = $$(removeHListElemTH @k @x @env @env') l
-                (xs, l'') = $$(rDelTH @k @env' @target' @env'') l'
+                (xs, l'') = $$(rearrDelTH @k @env' @target' @env'') l'
             in (prependX xs, l'') ||]
 
 instance {-# OVERLAPPING #-} (RearrangeDelTH * env head env',
     RearrangeDelTH * env' target' env'') =>
     RearrangeDelTH * env (HList head ': target') env'' where
-        rDelTH = [|| \l ->
-            let (head', l') = $$(rDelTH) l
-                (tail', l'') = $$(rDelTH) l'
+        rearrDelTH = [|| \l ->
+            let (head', l') = $$(rearrDelTH) l
+                (tail', l'') = $$(rearrDelTH) l'
             in (head' :+: tail', l'') ||]
 
 -- | removeHListElem retrieves the first element of type x from a list of xs.

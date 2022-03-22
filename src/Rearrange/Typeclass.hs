@@ -10,6 +10,10 @@ import Rearrange.TypeFamilies
 -- Rearrange arbitrary HLists into other HLists (no deletion)
 -- **********
 
+-- POSSIBLE FUTURE WORK: Allow kind-poly rearrangements - e.g.
+-- Rearrange Set st '[Set s, Set t] doesn't currently work due to the
+-- different kinds of the input and output.
+
 class Rearrangeable t => Rearrange (t :: [k] -> *) (as :: [k]) (bs :: [k]) where
     rearr :: t as -> t bs
 
@@ -32,31 +36,34 @@ instance {-# OVERLAPPING #-} (RearrangeableStar t, Rearrange t as xs, Rearrange 
 -- **********
 
 class Rearrangeable t => RearrangeDel t a b c | a b -> c where
-    rDel :: t a -> (t b, t c)
+    rearrDel :: t a -> (t b, t c)
 
 type Permute t a b = RearrangeDel t a b '[]
 type RDel t a b = RearrangeDel t a b (RemoveAll t b a)
 
 permute :: Permute t a b => t a -> t b
-permute = fst . rDel
+permute = fst . rearrDel
+
+rDel :: RDel t a b => t a -> t b
+rDel = fst . rearrDel
 
 -- Base case: result is empty.
 instance Rearrangeable t => RearrangeDel t a '[] a where
-    rDel l = (rEmpty, l)
+    rearrDel l = (rEmpty, l)
 
 -- Recursive case 1: list is of type x ': xs.
 instance {-# OVERLAPPABLE #-} (a' ~ Remove t x a, LookupH t x a a', RearrangeDel t a' xs a'') =>
     RearrangeDel t a (x ': xs) a'' where
-        rDel env = let (prependRes, env') = removeH env
-                       (rest, env'') = rDel env'
-                    in (prependRes rest, env'')
+        rearrDel env = let (prependRes, env') = removeH env
+                           (rest, env'') = rearrDel env'
+                        in (prependRes rest, env'')
 
 -- Recursive case 2: list is of type x ': xs, and x is a HList itself.
 instance {-# OVERLAPPING #-} (RearrangeableStar t, RearrangeDel t a xs a', RearrangeDel t a' ys a'') =>
     RearrangeDel t a (t xs ': ys) a'' where
-        rDel env = let (left, env') = rDel env
-                       (right, env'') = rDel env'
-                    in (rCons left right, env'')
+        rearrDel env = let (left, env') = rearrDel env
+                           (right, env'') = rearrDel env'
+                        in (rCons left right, env'')
 
 -- **********
 -- LookupH allows elements of a given type to be retrieved from a HList.

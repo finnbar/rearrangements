@@ -1,5 +1,5 @@
 app/Main.hs:15:12-55: Splicing expression
-    rDel @('[Int, Bool, ()]) @('[Bool, (), Int])
+    rearrDel @('[Int, Bool, ()]) @('[Bool, (), Int])
   ======>
     \ l_a2A9 -- '[I, B, U]
       -> let
