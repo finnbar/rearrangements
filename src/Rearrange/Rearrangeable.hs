@@ -9,17 +9,17 @@ import Data.Kind
 -- HList '[Bool, Int, ()] can be rearranged to HList '[Int, (), Bool].
 -- This is necessary since these structures can contain types of arbitrary kind
 -- k, so we can't just take the head of a structure easily (since we can only
--- return a value of type of kind *).
-class Rearrangeable (t :: [k] -> *) where
+-- return a value of type of kind Type).
+class Rearrangeable (t :: [k] -> Type) where
     rConsToHead :: t (x ': xs) -> (t xs' -> t (x ': xs'))
     rTail :: t (x ': xs) -> t xs
     rEmpty :: t '[]
 
 -- RearrangeableStar also allows for nested structures to be rearranged, since
--- the fully applied containers themselves are of kind *. e.g.
+-- the fully applied containers themselves are of kind Type. e.g.
 -- HList '[HList '[Bool, Int], HList '[()]] can be rearranged to
 -- HList '[HList '[Int], HList '[(), Bool]].
-class RearrangeableStar (t :: [*] -> *) where
+class RearrangeableStar (t :: [Type] -> Type) where
     rCons :: t xs -> t ys -> t (t xs ': ys)
     rHead :: t (t x ': xs) -> t x
 

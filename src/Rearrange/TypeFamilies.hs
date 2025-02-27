@@ -2,11 +2,13 @@
 
 module Rearrange.TypeFamilies where
 
+import Data.Kind (Type)
+
 type family If (b :: Bool) (x :: k) (y :: k) where
     If 'True t f = t
     If 'False t f = f
 
-type family Remove (t :: [k] -> *) (x :: k) (xs :: [k]) :: [k] where
+type family Remove (t :: [k] -> Type) (x :: k) (xs :: [k]) :: [k] where
     Remove t x (t xs ': xs') = If (Contains t x (t xs))
         (t (Remove t x xs) ': xs') (t xs ': Remove t x xs')
     Remove t x (x ': xs) = xs
@@ -18,7 +20,7 @@ type family Or (x :: Bool) (y :: Bool) :: Bool where
     Or _ _ = 'True
 
 -- Determines whether a type is present anywhere within nested t.
-type family Contains (t :: [k] -> *) (x :: k) (l :: k) :: Bool where
+type family Contains (t :: [k] -> Type) (x :: k) (l :: k) :: Bool where
     Contains t x (t '[]) = 'False
     Contains t x (t (x ': _)) = 'True
     Contains t x (t (t es ': xs)) =
@@ -27,10 +29,10 @@ type family Contains (t :: [k] -> *) (x :: k) (l :: k) :: Bool where
 
 data COS = IsContained Bool | Single
 
-type family ContainsOrSingle (t :: [k] -> *) (x :: k) (l :: k) :: COS where
+type family ContainsOrSingle (t :: [k] -> Type) (x :: k) (l :: k) :: COS where
     ContainsOrSingle t x (t xs) = 'IsContained (Contains t x (t xs))
     ContainsOrSingle t x _ = 'Single
 
-type family RemoveAll (t :: [k] -> *) (xs :: [k]) (li :: [k]) :: [k] where
+type family RemoveAll (t :: [k] -> Type) (xs :: [k]) (li :: [k]) :: [k] where
     RemoveAll t '[] li = li
     RemoveAll t (x ': xs) li = RemoveAll t xs (Remove t x li)

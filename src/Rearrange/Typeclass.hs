@@ -5,6 +5,7 @@ module Rearrange.Typeclass where
 
 import Rearrange.Rearrangeable
 import Rearrange.TypeFamilies
+import Data.Kind (Type)
 
 -- **********
 -- Rearrange arbitrary HLists into other HLists (no deletion)
@@ -17,7 +18,7 @@ import Rearrange.TypeFamilies
 -- Rearrange allows a Rearrangeable structure to be rearranged into that same
 -- structure but with the elements in a different order, as determined by the
 -- type of that structure.
-class Rearrangeable t => Rearrange (t :: [k] -> *) (as :: [k]) (bs :: [k]) where
+class Rearrangeable t => Rearrange (t :: [k] -> Type) (as :: [k]) (bs :: [k]) where
     rearr :: t as -> t bs
 
 -- Base case: result is empty.
@@ -63,7 +64,9 @@ instance Rearrangeable t => RearrangeDel t a '[] a where
 
 -- Recursive case 1: list is of type x ': xs, so find the first element of type
 -- x in the input, use that in the output and remove it from the input.
-instance {-# OVERLAPPABLE #-} (a' ~ Remove t x a, LookupH t x a a', RearrangeDel t a' xs a'') =>
+-- NOTE: The Rearrangeable t constraint looks redundant (it is implied by RearrangeDel), but
+-- -Wloopy-superclass-solve asks that we make the constraint explicit.
+instance {-# OVERLAPPABLE #-} (Rearrangeable t, a' ~ Remove t x a, LookupH t x a a', RearrangeDel t a' xs a'') =>
     RearrangeDel t a (x ': xs) a'' where
         rearrDel env = let (prependRes, env') = removeH env
                            (rest, env'') = rearrDel env'
@@ -71,7 +74,7 @@ instance {-# OVERLAPPABLE #-} (a' ~ Remove t x a, LookupH t x a a', RearrangeDel
 
 -- Recursive case 2: list is of type x ': xs, and x is a structure itself, so
 -- we need to first build that structure.
-instance {-# OVERLAPPING #-} (RearrangeableStar t, RearrangeDel t a xs a', RearrangeDel t a' ys a'') =>
+instance {-# OVERLAPPING #-} (Rearrangeable t, RearrangeableStar t, RearrangeDel t a xs a', RearrangeDel t a' ys a'') =>
     RearrangeDel t a (t xs ': ys) a'' where
         rearrDel env = let (left, env') = rearrDel env
                            (right, env'') = rearrDel env'
@@ -85,7 +88,7 @@ instance {-# OVERLAPPING #-} (RearrangeableStar t, RearrangeDel t a xs a', Rearr
 -- env' once that element is removed from env.
 -- Note here that the types are a bit awkward to deal with the fact that we
 -- cannot just return a value of type x since x :: k.
-class LookupH (t :: [k] -> *) (x :: k) (env :: [k]) (env' :: [k]) | x env -> env' where
+class LookupH (t :: [k] -> Type) (x :: k) (env :: [k]) (env' :: [k]) | x env -> env' where
     lookupH :: t env -> (t xs -> t (x ': xs))
     removeH :: t env -> (t xs -> t (x ': xs), t env')
 
